@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from openbench.cli import main
+from openbench.cli import _version_string, main
 
 
 def test_cli_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
@@ -18,6 +18,18 @@ def test_cli_version_flag(capsys: pytest.CaptureFixture[str]) -> None:
     assert exc_info.value.code == 0
     captured = capsys.readouterr()
     assert "openbench 0.5.0" in captured.out
+
+
+def test_cli_version_flag_does_not_wrap_on_narrow_terminal(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#109: `--version` is one unbroken line even when the terminal is very narrow."""
+    monkeypatch.setenv("COLUMNS", "20")
+    with pytest.raises(SystemExit) as exc_info:
+        main(["--version"])
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert captured.out == _version_string() + "\n"
 
 
 def test_cli_no_arguments_returns_exit_code_2(capsys: pytest.CaptureFixture[str]) -> None:

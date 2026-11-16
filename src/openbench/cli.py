@@ -55,6 +55,29 @@ def _version_string() -> str:
     return f"openbench {__version__} (Python {platform.python_version()}, {platform.platform(terse=True)})"
 
 
+class _SingleLineVersionAction(argparse.Action):
+    """Print the version as-is, bypassing the help formatter that wraps to the terminal width (#109)."""
+
+    def __init__(self, option_strings: Sequence[str], dest: str, **kwargs: Any) -> None:
+        version = kwargs.pop("version", None)
+        kwargs.setdefault("default", argparse.SUPPRESS)
+        kwargs["nargs"] = 0
+        super().__init__(option_strings, dest, **kwargs)
+        self.version = version
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        version = self.version if self.version is not None else parser.version
+        if version is not None:
+            print(version)
+        parser.exit(0)
+
+
 def _examples(*lines: str) -> str:
     return "examples:\n" + "\n".join(f"  {line}" for line in lines)
 
@@ -67,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--version",
-        action="version",
+        action=_SingleLineVersionAction,
         version=_version_string(),
         help="Show the OpenBench AI version and exit.",
     )
