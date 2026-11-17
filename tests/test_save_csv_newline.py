@@ -1,9 +1,7 @@
 """Regression: save_csv must write CSV bytes verbatim (no text-mode \n -> \r\n
-translation on Windows). GHissue lakshaychhaba0001-sys/openbench-ai#129."""
+translation on Windows). GH issue lakshaychhaba0001-sys/openbench-ai#129."""
 from __future__ import annotations
 
-import csv
-import io
 from pathlib import Path
 
 from openbench import DatasetLoader, EvaluationConfig, Evaluator, ModelResponseSet, ResponseItem
@@ -40,7 +38,7 @@ def test_save_csv_writes_exact_bytes(tmp_path, monkeypatch):
     assert raw == expected, (raw[:80], expected[:80])
 
 
-def test_save_csv_passes_newline_empty(monkeypatch):
+def test_save_csv_passes_newline_empty(tmp_path, monkeypatch):
     """save_csv explicitly disables newline translation."""
     result = _result()
     captured = {}
@@ -52,5 +50,5 @@ def test_save_csv_passes_newline_empty(monkeypatch):
         return real_write_text(self, data, encoding=encoding, errors=errors, newline=newline)
 
     monkeypatch.setattr(Path, "write_text", spy)
-    ReportGenerator.save_csv(result, "/tmp/_unused_openbench.csv")
+    ReportGenerator.save_csv(result, tmp_path / "r.csv")
     assert captured["newline"] == ""
