@@ -169,7 +169,7 @@ class ReportGenerator:
         """Write CSV report to disk and return the resolved path."""
         target = Path(output_path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(ReportGenerator.to_csv(result, mode=mode), encoding="utf-8")
+        target.write_text(ReportGenerator.to_csv(result, mode=mode), encoding="utf-8", newline="")
         return target
 
     @staticmethod
