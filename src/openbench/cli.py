@@ -229,7 +229,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--output",
         required=True,
         type=str,
-        help="Output file path (.md, .json, or .csv) or directory for the comparison report.",
+        help=(
+            "Output path for the comparison report. Use .json, .md, .markdown, or .csv "
+            "to write a single file; other paths are directories. A note is printed "
+            "when a path with an extension is used as a directory."
+        ),
     )
 
     # 4. list-datasets (v0.2.0 preserved)
@@ -1048,19 +1052,29 @@ def _handle_compare(results_args: list[list[str]], output_arg: str) -> int:
 
     comparison = ModelComparator.compare(eval_results)
     out_path = Path(output_arg)
+    suffix = out_path.suffix.lower()
+    file_suffixes = (".json", ".md", ".markdown", ".csv")
+    suffix_list = ", ".join(file_suffixes)
 
-    if out_path.suffix.lower() == ".json":
+    if suffix == ".json":
         ReportGenerator.save_json(comparison, out_path)
         print(f"Comparison JSON report written to: {out_path}")
-    elif out_path.suffix.lower() == ".csv":
+    elif suffix == ".csv":
         ReportGenerator.save_csv(comparison, out_path)
         print(f"Comparison CSV report written to: {out_path}")
-    elif out_path.suffix.lower() == ".md":
+    elif suffix in {".md", ".markdown"}:
         ReportGenerator.save_markdown(comparison, out_path)
         json_companion = out_path.with_suffix(".json")
         ReportGenerator.save_json(comparison, json_companion)
         print(f"Comparison reports written to: {out_path}, {json_companion}")
     else:
+        if suffix:
+            print(
+                f"Note: Using --output {out_path} as a directory because "
+                f"{out_path.suffix!r} is an unsupported extension. "
+                f"Single-file output requires a {suffix_list} extension.",
+                file=sys.stderr,
+            )
         out_path.mkdir(parents=True, exist_ok=True)
         md_file = out_path / "comparison.md"
         json_file = out_path / "comparison.json"

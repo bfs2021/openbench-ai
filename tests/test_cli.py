@@ -196,6 +196,83 @@ def test_cli_evaluate_directory_output(tmp_path, capsys, suffix, multiple, notic
         assert all(ext in captured.err for ext in (".json", ".md", ".markdown", ".csv"))
 
 
+def _make_compare_results(tmp_path: Path, capsys) -> tuple[Path, Path]:
+    """Produce two evaluation result JSON files for `openbench compare`."""
+    root = Path(__file__).resolve().parents[1]
+    dataset = root / "datasets/reasoning/sample.jsonl"
+    responses_b = tmp_path / "responses_b.json"
+    responses_b.write_text(
+        json.dumps(
+            {
+                "model_name": "ModelB",
+                "model_version": "0.5",
+                "responses": [
+                    {"id": "reasoning_001", "response": "180"},
+                    {"id": "reasoning_002", "response": "wrong"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    out_dir = tmp_path / "eval_results"
+    assert main([
+        "evaluate", "--dataset", str(dataset),
+        "--responses", str(root / "examples/sample_responses.json"), "--output", str(out_dir),
+    ]) == 0
+    assert main([
+        "evaluate", "--dataset", str(dataset),
+        "--responses", str(responses_b), "--output", str(out_dir),
+    ]) == 0
+    capsys.readouterr()  # discard warnings emitted while generating the fixtures
+    return out_dir / "alphabaseline-7b.json", out_dir / "modelb.json"
+
+
+@pytest.mark.parametrize(
+    ("suffix", "companion"),
+    [(".json", None), (".md", ".json"), (".csv", None),
+     (".markdown", ".json"), (".MARKDOWN", ".json")],
+)
+def test_cli_compare_single_file_output(tmp_path, capsys, suffix, companion):
+    a, b = _make_compare_results(tmp_path, capsys)
+    output = tmp_path / f"comparison{suffix}"
+    assert main([
+        "compare", "--results", str(a), str(b), "--output", str(output),
+    ]) == 0
+    assert output.is_file()
+    if companion:
+        assert output.with_suffix(companion).is_file()
+    if suffix.lower() in {".md", ".markdown"}:
+        assert "Model" in output.read_text(encoding="utf-8")
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    ("suffix", "notice"),
+    [
+        ("", None),
+        (".txt", "unsupported extension"),
+        (".html", "unsupported extension"),
+    ],
+)
+def test_cli_compare_directory_output(tmp_path, capsys, suffix, notice):
+    a, b = _make_compare_results(tmp_path, capsys)
+    output = tmp_path / f"comparison{suffix}"
+    assert main([
+        "compare", "--results", str(a), str(b), "--output", str(output),
+    ]) == 0
+    assert output.is_dir()
+    assert {p.name for p in output.iterdir()} == {"comparison.md", "comparison.json"}
+    captured = capsys.readouterr()
+    assert "Comparison reports written to:" in captured.out
+    if notice is None:
+        assert captured.err == ""
+    else:
+        assert str(output) in captured.err
+        assert "as a directory" in captured.err
+        assert notice in captured.err
+        assert all(ext in captured.err for ext in (".json", ".md", ".markdown", ".csv"))
+
+
 @pytest.mark.parametrize(
     ("host", "browser_host"),
     [("127.0.0.1", "127.0.0.1"), ("localhost", "localhost"),
